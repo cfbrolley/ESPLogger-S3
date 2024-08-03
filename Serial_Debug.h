@@ -1,3 +1,4 @@
+//library used for debugging sensor data when breadboarding.
 #ifndef Serial_Debug_h
 #define Serial_Debug_h
 #include <arduino.h>

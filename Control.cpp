@@ -57,7 +57,7 @@ Calling it more frequently than the baro can update will result in duplicate alt
 Duplicate values received when the control state is >0 can trigger drogue deployment early.
 Left in accepting acceleration value though as this can still be used as a safeguard against deploying while accelerating.
 -------------------------------------------------------------------------------------------------------------------------------------------------
-State 0 = checking for armed armed
+State 0 = checking for armed
 State 1 = armed, checking for drogue
 State 2 = drogue fired, checking for main
 State 3 = main fired, checking for disarm
@@ -65,16 +65,20 @@ State 4 = disarmed, checking for timeout
 State 5 = timeout
 -------------------------------------------------------------------------------------------------------------------------------------------------
 */
+//Deployment function handles all of the apogee detection/deployment logic. changes "Control states" when the parameter for the prior case has been met.
+//doubt this is the best way of doing things, but appears to work well for now.
 void Control::Deployment (float CurrentAlt, float az) {
   _CurrentAlt = CurrentAlt;
   _az = az;
   switch (controlstate) {
+  //control state 0: waiting for arming altitude
   case 0:
   if (_CurrentAlt > _armcheck) {
      _callback(controlstate);//callback armed print
      controlstate = 1;
      }
   break;
+  //control state 1: armed and checking for apogee
   case 1:
   if (_CurrentAlt <= _alticheck){
      _droguecount++;
@@ -89,12 +93,13 @@ void Control::Deployment (float CurrentAlt, float az) {
           _alticheck = _CurrentAlt;
           }   
   if (_droguecount >5) {
-     digitalWrite(_drogue, HIGH);
-     _callback(controlstate);//callback apogee time and drogue print
+     digitalWrite(_drogue, HIGH); //fire drogue parachute ejection charge
+     _callback(controlstate);//callback function is called and passed the current state.
      controlstate = 2;
      }
   break;
-  case 2:
+  //control state 2: past apogee and waiting to fall below main altitude
+  case 2: 
   if (_CurrentAlt <= _mainalti) {
      _maincount++;
      }
@@ -102,25 +107,27 @@ void Control::Deployment (float CurrentAlt, float az) {
           _maincount = 0;
           }
   if (_maincount > 5) {
-     digitalWrite(_main, HIGH);
-     _callback(controlstate);//callback main print
+     digitalWrite(_main, HIGH); //fire main parachute ejection charge
+     _callback(controlstate); //callback function is called and passed the current state.
      controlstate = 3;
      }
   break;
+  //control state 3: all ejection charges fired and and waiting to disarm
   case 3:
   if (_CurrentAlt < _armcheck) {
-     digitalWrite(_drogue, LOW);
+     digitalWrite(_drogue, LOW); //both pyro channels are set low below the armcheck altitude
      digitalWrite(_main, LOW);
-     _callback(controlstate);//callback disarmed print
+     _callback(controlstate); //callback function is called and passed the current state.
      controlstate = 4;
      }
   break;
-  case 4:
-  if (_correctedalt < 10) {
+  //control state 4: below disarm altitude and waiting to timeout. 
+  case 4: 
+  if (_CurrentAlt < 10) {
      _timeout = _timeout + 1;
      }
-  if (_timeout >= 2000) {
-     _callback(controlstate);//callback timed out
+  if (_timeout >= 1000) {
+     _callback(controlstate); //callback function is called and passed the current state.
      controlstate = 5;
      }
   break;
@@ -128,7 +135,8 @@ void Control::Deployment (float CurrentAlt, float az) {
   //do nothing
   break;
   }
-  /*  
+
+  /* not currently implemented  
   if (controlstate > 0 && controlstate < 3 && _az > maxaccel){
     maxaccel = _az;
      }
@@ -138,3 +146,30 @@ void Control::Deployment (float CurrentAlt, float az) {
        }
 */ 
 }
+
+//override can be called to force an action regardless of what the current "control state" is, then sets the control state to where it should be after the action.
+//e.g - Control.Overide(1) can be used to force the main parachute pyro channel to fire at any time.
+void Control::Override(int overrideCMD) {
+  _overrideCMD = overrideCMD;
+  switch (_overrideCMD) {
+  case 0:
+      digitalWrite(_drogue, HIGH);
+     _callback(1);//callback apogee time and drogue print
+     controlstate = 2;
+  break;
+  case 1:
+     digitalWrite(_main, HIGH);
+     _callback(2);//callback main print
+     controlstate = 3;
+  break;
+  case 2:
+     digitalWrite(_drogue, LOW);
+     digitalWrite(_main, LOW);
+     _callback(3);//callback disarmed print
+     controlstate = 4;
+  break;
+  default:
+  //do nothing
+  break;
+  }
+} 

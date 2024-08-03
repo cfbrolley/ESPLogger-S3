@@ -1,3 +1,5 @@
+//Library used for deployment logic.
+
 #ifndef Control_h
 #define Control_h
 #include <arduino.h>
@@ -12,7 +14,8 @@ class Control {
     void begin();
     void SetSafetyLock(int armcheck);
     void SetMainAltitude(int mainalti);
-    void Deployment (float CurrentAlt, float az); //Consider a second call without the accelerometer for baro-only loggers    
+    void Deployment (float CurrentAlt, float az); //Consider a second call without the accelerometer for baro-only loggers
+    void Override (int overrideCMD);    
     int controlstate = 0;
     unsigned long apogeetime;
     float maxaccel = 0;
@@ -25,6 +28,7 @@ class Control {
     int _armcheck;
     int _controlstate;
     int _timeout; //needed?
+    int _overrideCMD;
     float _correctedalt; 
     float _CurrentAlt;
     float _alticheck = 0;

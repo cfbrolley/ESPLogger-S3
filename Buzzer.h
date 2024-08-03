@@ -1,3 +1,5 @@
+//Library for the different buzzer tones used in the code.
+
 #ifndef Buzzer_h
 #define Buzzer_h
 #include <arduino.h>
