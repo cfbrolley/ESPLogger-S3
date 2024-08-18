@@ -1,8 +1,8 @@
-//Libraries. This flight computer uses an MPU6050 and BMP390over I2C, and SD reader over SPI.
+//Libraries. This flight computer uses an MPU6050 and BMP390 over I2C protocol, and SD reader over SPI.
 #include <SdFat.h> //SdFat library runs way faster than the standard SD library
 #include <Wire.h>
 #include <SPI.h>
-#include <Adafruit_Sensor.h> //wtf does this one even do, idk.
+#include <Adafruit_Sensor.h>.
 #include <Adafruit_MPU6050.h>
 #include <DFRobot_BMP3XX.h>
 #include "Buzzer.h"
@@ -38,8 +38,8 @@ Adafruit_MPU6050 mpu;
 SdFat SD;
 SdFile logfile;
 Buzzer Buzz(15);
-void events(int state); //forward declaration of events function for control function
-Control Control(droguepin, mainpin, 20, events); //set pnis to trigger ejection chargers, safety lockout altitude (so ejection charges don't accidentally go off at ground level) and what function to callback to on state change
+void events(int state); //forward declaration of events function for control function, wouldn't compile properly without it
+Control Control(droguepin, mainpin, 20, events); //set pins for ejection charges, safety lockout altitude (so ejection charges don't accidentally go off at ground level) and what function to callback to on state change
 Serial_Debug Debug(115200);
 
 void setup() {
@@ -84,7 +84,7 @@ void setup() {
   bmp.setIIRMode(BMP3XX_IIR_CONFIG_COEF_7);
   delay(1000);
   pressure = bmp.readPressPa()/100;
-  altioffset = 44330.0 * (1.0 - pow(pressure / SEALEVELPRESSURE_HPA, 0.1903)); //Set an offest for height above ground. There's a better way to do this probably.
+  altioffset = 44330.0 * (1.0 - pow(pressure / SEALEVELPRESSURE_HPA, 0.1903)); //Set an offest for height above ground. There's definitely a better way to do this.
   Debug.debugBMP(3, altioffset);
   neopixelWrite(21,0,0,0); // onboard LED Off
   delay(500);
@@ -144,7 +144,7 @@ void setup() {
 void readsensors (void) {
 //Read IMU and apply calibration offset
 //Calibration values need to be adjusted for each logger. 
-//There is a better way to calibrate the accelerometer using linear formula but offsets will do for now.
+//There is a better way to calibrate the accelerometer using a formula but offsets will do for now.
   sensors_event_t a, g, temp;
   mpu.getEvent(&a, &g, &temp);
   ax = a.acceleration.x -0.65; 
@@ -225,7 +225,7 @@ void loop() {
      timer = millis(); //check 
      readsensors();
 
-     //log the readings to file. v4.1 prints in a different way, might have to bring that across if it's more efficient but this seems ok for now
+     //log the readings to file. This is probably inefficient but will go in the bin if using onboard memory anyway.
      logfile.println();
      logfile.print(datatimer); COMMA;
      logfile.print(ax); COMMA;
@@ -270,22 +270,3 @@ void loop() {
         }
   }   
 }
-
-/* 07/05/2024 - this version is currently working on an ESP32-S3 based data logger
-
--Uses BMP390 for the barometer and MPU6050 for the IMU.
--Buzzer tones are in their own library
--Control library handles arming/disarming ejection charge pins, drogue deployment, main deployment and timeout notification on landing through the use of numbered "states"
--Each state corresponds with a different set of checks, when the parameters in one state are met, will change state and perform the new checks
--Control library can be given the deployment pins, arming altitude, main deployment altitude and a callback function that will be called by the logic of the control state before each state change.
--Serial debug library has a few different custom functions to assist with breadboard testing and diagnosis.
--logging rate with an ESP32-S3 can reach over 500hz for the IMU, or over 1000hz with data debugging not defined, and at least 50hz for the baro although is currently not fully tested.
--Starting to make use of on-board RGB LED 
-
-
-To do:
--Explore adding a 9-axis IMU in place of the MPU6050
--Servo control should be possible with the S3, but might roll that in to a separate version.
--would like to make use of dual core processing
--Would like to switch over to recording microseconds rather than milliseconds for mor accuracy but had issues on last attempt.
-*/
