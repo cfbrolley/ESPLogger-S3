@@ -2,10 +2,10 @@
 #include "Control.h"
 
 //Pass the drogue trigger pin, main trigger pin, arming lockout altitude, and a callback function.
-//This one is special, because when you pass the constructor a function, the Deployment function will call that function and pass the current control state before switching the control state. 
-//This allows the user to place a function in the main code that's ONLY called right before a state change
+//the Deployment function will call the callback function and pass the current control state before switching the control state. 
+//This allows the user to place a function in the main code that's only called just before a state change
 //for example, when the parameters to fire the drogue are met, the Deployment function sets the drogue pin high calls the calls the function it that has been passed to the class and passes the current state to it.
-//the function that was passed to the class runs, and does whatever the user wants based on the control state (let's say it's passed a '2' - based on '2', it runs serial.print("drogue fried")).
+//the function that was passed to the class runs, and does whatever the user wants based on the control state (let's say it's passed a '2' - based on '2', the switch/case in the callback function calls serial.print("drogue fired")).
 //the Deploy function then sets control state to 3, which has different parameters before the callback is called again, that way it happens once and the callback won't keep repeating.
 Control::Control(int drogue, int main, int armcheck, ControlCallback callback) {
     _drogue = drogue;
@@ -51,35 +51,30 @@ void Control::SetMainAltitude(int mainalti) {
 /*
 This is the function that handles all of the arming and deployment checks.
 checks different parameters and performs different actions based on current state.
-Temporarily removed liftoff time recording and max acceleration recording. 
-This is because these checks rely on accelerometer readings, but the accelerometer can take readings more frequently than the baro.
-Calling it more frequently than the baro can update will result in duplicate altitude values being passed to the function.
-Duplicate values received when the control state is >0 can trigger drogue deployment early.
-Left in accepting acceleration value though as this can still be used as a safeguard against deploying while accelerating.
+Temporarily removed liftoff time recording and max acceleration recording while getting this working, haven't got around to adding these back in yet. 
+This is because in the current version of the code, functions from this library are only called when baro data is ready, and not when accelerometer data is ready.
 -------------------------------------------------------------------------------------------------------------------------------------------------
-State 0 = checking for armed
-State 1 = armed, checking for drogue
-State 2 = drogue fired, checking for main
-State 3 = main fired, checking for disarm
-State 4 = disarmed, checking for timeout 
-State 5 = timeout
+State 0 = checking for "armed" altitude
+State 1 = armed, checking for apogee
+State 2 = passed apogee and drogue fired, checking for main deployment altitude
+State 3 = below main deployment altitude and main fired, checking for "disarm" altitude
+State 4 = below disarm altitude and deployment channels set low, checking for timeout 
+State 5 = timed out state/end of flight
 -------------------------------------------------------------------------------------------------------------------------------------------------
 */
-//Deployment function handles all of the apogee detection/deployment logic. changes "Control states" when the parameter for the prior case has been met.
-//doubt this is the best way of doing things, but appears to work well for now.
+//Deployment function handles all of the apogee detection/deployment logic. Changes "Control states" when the parameter for the prior case has been met.
+//probably not the best way of doing things, but has worked well.
 void Control::Deployment (float CurrentAlt, float az) {
   _CurrentAlt = CurrentAlt;
   _az = az;
   switch (controlstate) {
-  //control state 0: waiting for arming altitude
-  case 0:
+  case 0:   //control state 0: waiting for arming altitude
   if (_CurrentAlt > _armcheck) {
      _callback(controlstate);//callback armed print
      controlstate = 1;
      }
   break;
-  //control state 1: armed and checking for apogee
-  case 1:
+  case 1:  //control state 1: armed and checking for apogee
   if (_CurrentAlt <= _alticheck){
      _droguecount++;
      _alticheck = _CurrentAlt;
@@ -98,8 +93,7 @@ void Control::Deployment (float CurrentAlt, float az) {
      controlstate = 2;
      }
   break;
-  //control state 2: past apogee and waiting to fall below main altitude
-  case 2: 
+  case 2:   //control state 2: past apogee and waiting to fall below main altitude
   if (_CurrentAlt <= _mainalti) {
      _maincount++;
      }
@@ -112,8 +106,7 @@ void Control::Deployment (float CurrentAlt, float az) {
      controlstate = 3;
      }
   break;
-  //control state 3: all ejection charges fired and and waiting to disarm
-  case 3:
+  case 3:  //control state 3: all ejection charges fired and and waiting to disarm
   if (_CurrentAlt < _armcheck) {
      digitalWrite(_drogue, LOW); //both pyro channels are set low below the armcheck altitude
      digitalWrite(_main, LOW);
@@ -121,8 +114,7 @@ void Control::Deployment (float CurrentAlt, float az) {
      controlstate = 4;
      }
   break;
-  //control state 4: below disarm altitude and waiting to timeout. 
-  case 4: 
+  case 4:   //control state 4: below disarm altitude and waiting to timeout. 
   if (_CurrentAlt < 10) {
      _timeout = _timeout + 1;
      }
