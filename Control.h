@@ -27,12 +27,12 @@ class Control {
     int _main; 
     int _armcheck;
     int _controlstate;
-    int _timeout; //needed?
+    int _timeout;
     int _overrideCMD;
     float _correctedalt; 
     float _CurrentAlt;
     float _alticheck = 0;
-    float _mainalti; //check this!! - wait... why? Thanks Past Rolley... super unhelpful, man.
+    float _mainalti;
     float _az;
     byte _droguecount = 0;
     byte _maincount = 0;
